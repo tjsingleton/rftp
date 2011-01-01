@@ -1,0 +1,3 @@
+module Rftp
+  # Your code goes here...
+end
