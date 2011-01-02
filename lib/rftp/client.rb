@@ -15,9 +15,9 @@ module RFTP
     def cp_r(local_path, destination_path = "")
       Log.info "cp_r: #{local_path}, #{destination_path}"
       FileList.new(local_path).each do |path|
-        dest = File.join(destination_path.shellescape, path.shellescape)
+        dest = File.join(destination_path, path)
         Log.debug "cp_r: #{path} to #{dest}"
-        @connection.enqueue :copy_to, path, dest
+        @connection.enqueue :copy_to, path.shellescape, dest
       end
     end
 
