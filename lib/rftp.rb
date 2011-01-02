@@ -10,6 +10,4 @@ require "rftp/version"
 require "rftp/client"
 
 module RFTP
-
 end
-

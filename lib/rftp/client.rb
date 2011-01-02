@@ -15,9 +15,13 @@ module RFTP
     def cp_r(local_path, destination_path = "")
       Log.info "cp_r: #{local_path}, #{destination_path}"
       FileList.new(local_path).each do |path|
+        unless File.exist? path
+          Log.error "cp_r: file does not exist - #{path}"
+          next
+        end
         dest = File.join(destination_path, path)
-        Log.debug "cp_r: #{path} to #{dest}"
-        @connection.enqueue :copy_to, path.shellescape, dest
+        Log.debug "cp_r: enqueuing - copy_to, #{path}, #{dest}"
+        @connection.enqueue :copy_to, path, dest
       end
     end
 
@@ -154,6 +158,8 @@ module RFTP
       Log.info "copy_to: #{file}, #{path}"
       mkpath File.dirname(path)
       connection.putbinaryfile file, path, 8192
+    rescue Exception => e
+
     end
   end
 end
