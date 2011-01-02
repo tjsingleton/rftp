@@ -1,8 +1,4 @@
 module RFTP
-  Credentials = Struct.new :host, :user, :passwd, :acct
-  Log = Logger.new(STDOUT)
-  Log.level = Logger::DEBUG
-
   class Client
     def initialize(host = nil, user = nil, passwd = nil, acct = nil )
       @credentials = Credentials.new host, user, passwd, acct
@@ -13,15 +9,22 @@ module RFTP
     attr_reader :credentials, :connection
 
     def sync(local_path, destination_path = "")
-      Log.info "cp_r: #{local_path}, #{destination_path}"
-      FileList.new(local_path).each do |path|
-        unless File.exist? path
-          Log.error "cp_r: file does not exist - #{path}"
-          next
-        end
-        dest = File.join(destination_path, path)
-        Log.debug "cp_r: enqueuing - copy_to, #{path}, #{dest}"
-        @connection.enqueue :copy_to, path, dest
+      Log.info "sync: #{local_path}, #{destination_path}"
+
+      file_list, errors = FileList.new(local_path).partition {|path| File.exist? path }
+      Log.error "sync: these files do not exist - #{errors.join(", ")}" if errors.any?
+
+      directories, files = file_list.partition {|path| File.directory? path }
+
+      directories.each do |path|
+        Log.info "sync: creating remote directory - #{path}"
+        @connection.enqueue :mkpath, File.join(destination_path, path)
+      end
+      @connection.wait if directories.any?
+
+      files.each do |path|
+        Log.info "sync: creating remote file - #{path}"
+        @connection.enqueue :copy_to, path, File.join(destination_path, path)
       end
     end
 
@@ -30,17 +33,8 @@ module RFTP
     end
   end
 
-#  * getbinaryfile
-#  * putbinaryfile
-#  * mkdir
-#  * chdir
-#  * nlst
-#  * size
-#  * rename
-#  * delete
-
   class CompositeConnection
-    def initialize(client, workers = 5)
+    def initialize(client, workers = 10)
       @client = client
       @queue = Queue.new
       @threads = workers.times.map { build_worker }
@@ -76,6 +70,10 @@ module RFTP
       count = @threads.count
       Log.info "close: #{count} connections"
       count.times { enqueue :close }
+      wait
+    end
+
+    def wait
       until @queue.empty?; end
     end
   end
@@ -156,10 +154,9 @@ module RFTP
 
     def copy_to(file, path)
       Log.info "copy_to: #{file}, #{path}"
-      mkpath File.dirname(path)
       begin
         if File.size(file) == connection.size(path)
-          Log.info "copy_to: #{file} and #{path} are the same size"
+          Log.info "copy_to: #{file} and #{path} are the same size - skipping"
         end
       rescue Net::FTPReplyError => e
         Log.debug "copy_to: #{path} does not exist - copying"
