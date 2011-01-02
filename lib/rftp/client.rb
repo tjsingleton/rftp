@@ -12,7 +12,7 @@ module RFTP
 
     attr_reader :credentials, :connection
 
-    def cp_r(local_path, destination_path = "")
+    def sync(local_path, destination_path = "")
       Log.info "cp_r: #{local_path}, #{destination_path}"
       FileList.new(local_path).each do |path|
         unless File.exist? path
@@ -157,9 +157,14 @@ module RFTP
     def copy_to(file, path)
       Log.info "copy_to: #{file}, #{path}"
       mkpath File.dirname(path)
+      begin
+        if File.size(file) == connection.size(path)
+          Log.info "copy_to: #{file} and #{path} are the same size"
+        end
+      rescue FTPReplyError => e
+        Log.debug "copy_to: #{path} does not exist, copying"
+      end
       connection.putbinaryfile file, path, 8192
-    rescue Exception => e
-
     end
   end
 end
