@@ -161,8 +161,8 @@ module RFTP
         if File.size(file) == connection.size(path)
           Log.info "copy_to: #{file} and #{path} are the same size"
         end
-      rescue FTPReplyError => e
-        Log.debug "copy_to: #{path} does not exist, copying"
+      rescue Net::FTPReplyError => e
+        Log.debug "copy_to: #{path} does not exist - copying"
       end
       connection.putbinaryfile file, path, 8192
     end
